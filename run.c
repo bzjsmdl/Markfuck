@@ -57,10 +57,10 @@ int run(char* command, unsigned int length, int isdg){
 				}
 			break;
 			case '&':
-				if (stack_ptr == msize) {
+				if (stack_ptr == msize - MB(64)) {
 					stack_ptr = 0;
 					if (isdg) {
-						printf("[DEBUG]<stack_ptr = %lu> (Overflow!)\n", stack_ptr);
+						printf("[DEBUG]stack_ptr Overflow!\n", stack_ptr);
 						printf("[DEBUG] Continue to run\n");
 					}
 				}
@@ -69,9 +69,9 @@ int run(char* command, unsigned int length, int isdg){
 			break;
 			case '*':
 				if (stack_ptr == 0) {
-					data_ptr = 0;
+					stack_ptr = msize - MB(64);
 					if (isdg) {
-						printf("[DEBUG]<stack_ptr = %lu> (Overflow!)\n", stack_ptr);
+						printf("[DEBUG]stack_ptr Overflow!\n", stack_ptr);
 						printf("[DEBUG] Continue to run\n");
 					}
 				}
@@ -79,21 +79,17 @@ int run(char* command, unsigned int length, int isdg){
 				if (isdg) printf("[DEBUG]<stack_ptr = %lu>\n", stack_ptr);
 			break;
 			case '?': {
-				if (isdg) printf("[DEBUG]<Now: pc = %lu>\n", pc);
 				size_t pc_else = pc += 2, pc_then = pc + 1;
 				size_t bidx = memory[data_ptr] % 8;
 				if (getb(flag, bidx) == 1) pc = pc_then;
 				else pc = pc_else;
-				if (isdg) printf("[DEBUG]<Now: pc = %lu>\n", pc);
 				continue;
 			} break;
 			case '!': {
-				if (isdg) printf("[DEBUG]<Now: pc = %lu>\n", pc);
 				size_t pc_else = pc + 2, pc_then = pc + 1;
 				size_t bidx = memory[data_ptr] % 8;
 				if (getb(flag, bidx) == 0) pc = pc_then;
 				else pc = pc_else;
-				if (isdg) printf("[DEBUG]<Now: pc = %lu>\n", pc);
 				continue;
 			} break;
 			case ':':
@@ -133,7 +129,7 @@ int run(char* command, unsigned int length, int isdg){
 				if (data_ptr == 0) {
 					data_ptr = msize;
 					if (isdg) {
-						printf("[DEBUG]<data_ptr = %lu> (Overflow!)\n", data_ptr);
+						printf("[DEBUG]data_ptr Overflow!\n", data_ptr);
 						printf("[DEBUG] Continue to run\n");
 					}
 				}
@@ -146,35 +142,42 @@ int run(char* command, unsigned int length, int isdg){
 				if (data_ptr == msize) {
 					data_ptr = 0;
 					if (isdg) {
-						printf("[DEBUG]<data_ptr = %lu> (Overflow!)\n", data_ptr);
+						printf("[DEBUG] data_ptr Overflow!\n", data_ptr);
 						printf("[DEBUG] Continue to run\n");
 					}
 				}
 				else {
 					data_ptr++;
-					if (isdg) printf("[DEBUG]<data_ptr = %lu>\n", data_ptr);
 				}
 			break;
 			case '@': {
 				size_t tmp_pc = pc + 1, step = sizeof(tmp_pc);
 				memcpy((interrupt_vector + iv_idx * step), &tmp_pc, step);
+				iv_idx++;
 			} break;
 			case '$': {
 				size_t step = sizeof(pc), idx = 0, tmp_pc = pc + 1;
-				push(tmp_pc);
 				memcpy(&idx, memory + data_ptr, step);
 				memcpy(&pc, (interrupt_vector + idx * step), step);
-				if (isdg) printf("[DEBUG]<Now: pc = %lu>\n", pc);
+				push(tmp_pc);
 				continue;
 			} break;
 			case '%': {
 				memcpy(&pc, memory + data_ptr, sizeof(pc));
-				if (isdg) printf("[DEBUG]<JMP Now: pc = %lu>\n", pc);
 				continue;
 			} break;
 			default: break;
 		}
+		if (isdg) {
+			printf("===========================\n[DEBUG]<data_ptr = %lu>\n", data_ptr);
+			printf("[DEBUG]<pc = %lu>\n", pc);
+			printf("[DEBUG]<stack_ptr = %lu>\n", stack_ptr);
+			printf("Stack: ");
+			for (size_t i = 0; i < stack_ptr; i++) printf("%.2X ", stack[stack_ptr]);
+			printf("\n");
+		}
 		next: pc++;
+		
 	}
 	end:
 		free(memory);
