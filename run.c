@@ -43,7 +43,13 @@ int run(char* command, unsigned int length, int isdg){
 		if (!start && command[pc] != ':') continue;
 		switch (command[pc]) {
 			case '\0': error = FileNotEnd; break;
-			case '~': system("clear"); break;
+			case '~':
+				#ifdef __WIN32__ 
+					system("cls"); 
+				#else 
+					system("clear");
+				#endif
+			break;
 			case ',': scanf("%c", memory + data_ptr); break;
 			case 'w': scanf("%d", memory + data_ptr); break;
 			case 'r': printf("%d", memory[data_ptr]); break;
