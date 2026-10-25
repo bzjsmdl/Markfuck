@@ -29,9 +29,8 @@ int main(int argc, const char **argv){
     text[lengh] = '\0';
     fclose(src);
 
-    if (isdg) printf("[Message]<The File: %s>\n\n\n\n\n", text);
     error = run(text, lengh, isdg);
-    if (error != 0) goto err;
+    if (error != NoError) goto err;
 
     return 0;
     err:
