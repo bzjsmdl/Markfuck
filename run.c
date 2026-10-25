@@ -13,13 +13,7 @@
 
 #define pop(n) {\
 	size_t step = sizeof(n);\
-	memcpy(&n, stack + stack_ptr, step);\
 	stack_ptr -= step;\
-}
-
-// Protect Pop
-#define ppop(n) {\
-	size_t step = sizeof(n);\
 	memcpy(&n, stack + stack_ptr, step);\
 }
 
@@ -40,7 +34,10 @@ int run(char* command, unsigned int length, int isdg){
 
 	int start = 0;
 	while (pc < length) {
-		if (!start && command[pc] != ':') continue;
+		if (!start && command[pc] != ':') {
+			pc++;
+			continue;
+		}
 		switch (command[pc]) {
 			case '\0': error = FileNotEnd; break;
 			case '~':
@@ -57,6 +54,20 @@ int run(char* command, unsigned int length, int isdg){
 			case '&': push(memory[data_ptr]); break;
 			case '*': pop(memory[data_ptr]); break;
 			case ';': if (isdg) { printf("[DEBUG]<program end>\n"); } goto end;
+			case '?':
+				size_t pc_else = pc += 2, pc_then = pc + 1;
+				size_t bidx = memory[data_ptr];
+				if (bidx > 7) pc = pc_else;
+				else if (getb(flag, bidx) == 1) pc = pc_then;
+				else pc = pc_else;
+			break;
+			case '!':
+				size_t pc_else = pc += 2, pc_then = pc + 1;
+				size_t bidx = memory[data_ptr];
+				if (bidx > 7) pc = pc_else;
+				else if (getb(flag, bidx) == 0) pc = pc_then;
+				else pc = pc_else;
+			break;
 			case ':':
 				start = 1;
 				if (isdg) {
