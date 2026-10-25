@@ -53,6 +53,7 @@ int run(char* command, unsigned int length, int isdg){
 			case '.': printf("%c", memory[data_ptr]); break;
 			case '&': push(memory[data_ptr]); break;
 			case '*': pop(memory[data_ptr]); break;
+			case '#': memory[data_ptr] = command[memory[data_ptr]]; break;
 			case ';': if (isdg) { printf("[DEBUG]<program end>\n"); } goto end;
 			case '?': {
 				size_t pc_else = pc += 2, pc_then = pc + 1;

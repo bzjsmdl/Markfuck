@@ -13,7 +13,7 @@
 #define GB(n) (size_t)(MB(1024) * n)
 
 // set bit
-#define setb(b, i, n) (b | (n << i))
+#define setb(b, i, n) (b |= (n << i))
 // get bit
 #define getb(b, i) ((b & (1 << i)) != 0)
 
