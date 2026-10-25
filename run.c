@@ -1,110 +1,141 @@
 #include "run.h"
-int LoopStart = 0;
-int run(char* buffer, unsigned int lengh, int isdg){
-    int LoopCount = 0;
-    int isLoop = 0;
-    int Stack[1024] = {0};
-    int StackOffset = 0;
 
-    int8_t* a = malloc(30000);
-    for (size_t j = 0; j < 30000; j++){
-        a[j] = 0;
-    }
-    
-    int i = 0, aidx = 0, s = 0;
-    while (i < lengh){
-        if (!s && buffer[i] == ':') {
-            s = 1;
-            if (isdg) {
-                printf("[DEBUG]<program start>\n");
-                printf("[DEBUG]<i = %d, nowchr = %c>\n", i, buffer[i]);
-            }
-        }
-        if (s && buffer[i] == ';') {
-            if (isdg) {
-                printf("[DEBUG]<program end>\n");
-                printf("[DEBUG]<i = %d, nowchr = %c>\n", i, buffer[i]);
-            }
-            break;
-        }
-        
-        if (s && buffer[i] == '+') {
-            int gover = a[aidx];
-            if (gover++ > 127) {
-                if (isdg) printf("[DEBUG]<gover = %d>\n", gover);
-                return AboveOverFlowError;
-            }
-            a[aidx]++;
-        }
-        if (s && buffer[i] == '-') {
-            int lover = a[aidx];
-            if (lover-- < -128) {
-                if (isdg) printf("[DEBUG]<lover = %d>\n", lover);
-                return BelowOverFlowError;
-            } 
-            a[aidx]--;
-        }
-        if (s && buffer[i] == '{') {
-            if (aidx == 0) return CannotMoveLeftPointer;
-            aidx--;
-        }
-        if (s && buffer[i] == '}') {
-            if (aidx > 30000) return CannotMoveRightPointer;
-            aidx++;
-        }
-        if (s && buffer[i] == 'r') {
-            printf("%d", a[aidx]);
-            if (isdg) printf("[DEBUG]<Read: %d>\n", a[aidx]);
-        }
-        if (s && buffer[i] == '.') {
-            printf("%c", a[aidx]);
-            if (isdg) printf("[DEBUG]<Print: %c>\n", a[aidx]);
-        }
-        if (s && buffer[i] == '[') {
-            
-            LoopCount = a[aidx];
-            isLoop = 1;
+#define ZF 0
+#define OF 1
+#define CF 2
+#define SF 3
 
-            //Stack[StackOffset] = i;
-            //StackOffset++;
-            LoopStart = i;
-            if (isdg){
-                printf("[DEBUG]<Start Character: %c>\n", buffer[LoopStart]);
-                printf("[DEBUG]<Start: LoopCount = %d>\n", LoopCount);
-                printf("[DEBUG]<Start: i = %d>\n", i + 1);
-            }
-        }
-        if (s && buffer[i] == ']') {
-            int LC = LoopCount;
-            LC--;
-            if (!isLoop || LoopCount < 0) return UnkownLoop;
-            if (LoopCount <= 0 || LC-- <= 0) {
-                i++;
-                continue;
-            }
-            else {
-                if (isdg) {
-                    printf("[DEBUG]<End: i = %d>\n", i);
-                    printf("[DEBUG]<End Character: %c>\n", buffer[i - 1]);
-                }
-                LoopCount--;
-                if (isdg) printf("[DEBUG]<LoopCount = %d>\n", LoopCount);
-                //i = Stack[StackOffset];
-                //StackOffset--;
-                i = LoopStart;
-            }
-        }
-        if (buffer[i] == '\0') return FileNotEnd;
-        i++;
-    }
-    return 0;
+#define push(n) {\
+	size_t step = sizeof(n);\
+	memcpy(stack + stack_ptr, &n, step);\
+	stack_ptr += step;\
 }
-void Error(int error){
-    if (error = AboveOverFlowError) printf("Error: Above OverFlow!");
-    else if (error = CannotMoveLeftPointer) printf("Error: Cannot Move Left Pointer!");
-    else if (error = BelowOverFlowError) printf("Error: Below OverFlow!");
-    else if (error = StackOverFlow) printf("Error: Program(VM) Stack OverFlow!");
-    else if (error = CannotMoveRightPointer) printf("Error: Cannot Move Right Pointer!");
-    else if (error = UnkownLoop) printf("Error: Unkown Loop!");
-    else if (error = FileNotEnd) printf("Error: The file doesn't write \";\". So, the program maybe not exit.");
+
+#define pop(n) {\
+	size_t step = sizeof(n);\
+	memcpy(&n, stack + stack_ptr, step);\
+	stack_ptr -= step;\
+}
+
+// Protect Pop
+#define ppop(n) {\
+	size_t step = sizeof(n);\
+	memcpy(&n, stack + stack_ptr, step);\
+}
+
+int run(char* command, unsigned int length, int isdg){
+	int error = NoError;
+
+	size_t pc = 0;
+	size_t data_ptr = 0;
+	uint8_t flag = 0;
+	size_t stack_ptr = 0;
+	size_t LoopCount = 0;
+
+	size_t msize = MB(256);
+
+	int8_t* memory = malloc(msize);
+	int8_t* stack = memory + MB(128);
+	memset(memory, 0, msize);
+
+	int start = 0;
+	while (pc < length) {
+		if (!start && command[pc] != ':') continue;
+		switch (command[pc]) {
+			case '\0': error = FileNotEnd; break;
+			case '~': system("clear"); break;
+			case ',': scanf("%c", memory + data_ptr); break;
+			case 'w': scanf("%d", memory + data_ptr); break;
+			case 'r': printf("%d", memory[data_ptr]); break;
+			case '.': printf("%c", memory[data_ptr]); break;
+			case '&': push(memory[data_ptr]); break;
+			case '*': pop(memory[data_ptr]); break;
+			case ';': if (isdg) { printf("[DEBUG]<program end>\n"); } goto end;
+			case ':':
+				start = 1;
+				if (isdg) {
+					printf("[DEBUG]<program start>\n");
+					printf("[DEBUG]<pc = %d, nowchr = %c>\n", pc, command[pc]);
+				}
+			break;
+			case '+':
+				int gover = memory[data_ptr];
+				if (gover == 127) {
+					if (isdg) {
+						setb(flag, OF, 1);
+						printf("[DEBUG]<gover = %d>\n", gover);
+						printf("[DEBUG] Continue to run\n");
+					}
+				}
+				memory[data_ptr]++;
+				if (memory[data_ptr] == 0) setb(flag, ZF, 1);
+				if ((memory[data_ptr] & 0b10000000) != 0) setb(flag, SF, 1);
+			break;
+			case '-':
+				int lover = memory[data_ptr];
+				if (lover == -128) {
+					if (isdg) {
+						setb(flag, CF, 1);
+						printf("[DEBUG]<lover = %d>\n", lover);
+						printf("[DEBUG] Continue to run\n");
+					}
+				} 
+				memory[data_ptr]--;
+				if (memory[data_ptr] == 0) setb(flag, ZF, 1);
+				if ((memory[data_ptr] & 0b10000000) != 0) setb(flag, SF, 1);
+			break;
+			case '<':
+				if (data_ptr == 0) {
+					data_ptr = msize;
+					if (isdg) {
+						printf("[DEBUG]<data_ptr = %d> (Above Overflow!)\n", data_ptr);
+						printf("[DEBUG] Continue to run\n");
+					}
+				}
+				else data_ptr--;
+			break;
+			case '>':
+				if (data_ptr == msize) {
+					data_ptr = 0;
+					if (isdg) {
+						printf("[DEBUG]<data_ptr = %d> (Below Overflow!)\n", data_ptr);
+						printf("[DEBUG] Continue to run\n");
+					}
+				}
+				else data_ptr++;
+			break;
+			case '@':
+				size_t tmp_pc = pc + 1;
+				push(tmp_pc);
+				if (isdg){
+					printf("[DEBUG]<Label Character: %c>\n", command[tmp_pc]);
+					printf("[DEBUG]<Start: pc = %d>\n", tmp_pc);
+				}
+			break;
+			case '$':
+				pop(pc);
+				if (isdg) printf("[DEBUG]<Now: pc = %d>\n", pc);
+			break;
+			default: break;
+		}
+		pc++;
+	}
+	end:
+		free(memory);
+		return error;
+}
+
+void Error(int error, const char* str){
+	switch (error) {
+		case NoError: return;
+		case UnkownArgments: printf("Error: Unkown Argments %s", str); break;
+		case CannotOpenFile: printf("Error: Cannot open file \"%s\"\n", str); break;
+		case CannotMoveLeftPointer: printf("Error: Cannot Move Left Pointer!"); break;
+		case StackOverFlow: printf("Error: Stack of VM OverFlow!"); break;
+		case CannotMoveRightPointer: printf("Error: Cannot Move Right Pointer!"); break;
+		case UnkownLoop: printf("Error: Unkown Loop!"); break;
+		case FileNotEnd: printf("Error: The file doesn't write \";\". So, the program maybe not exit."); break;
+		default: printf("Unkown Error.");
+	}
+	printf("\n");
 }
