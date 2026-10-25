@@ -54,20 +54,20 @@ int run(char* command, unsigned int length, int isdg){
 			case '&': push(memory[data_ptr]); break;
 			case '*': pop(memory[data_ptr]); break;
 			case ';': if (isdg) { printf("[DEBUG]<program end>\n"); } goto end;
-			case '?':
+			case '?': {
 				size_t pc_else = pc += 2, pc_then = pc + 1;
 				size_t bidx = memory[data_ptr];
 				if (bidx > 7) pc = pc_else;
 				else if (getb(flag, bidx) == 1) pc = pc_then;
 				else pc = pc_else;
-			break;
-			case '!':
+			} break;
+			case '!': {
 				size_t pc_else = pc += 2, pc_then = pc + 1;
 				size_t bidx = memory[data_ptr];
 				if (bidx > 7) pc = pc_else;
 				else if (getb(flag, bidx) == 0) pc = pc_then;
 				else pc = pc_else;
-			break;
+			} break;
 			case ':':
 				start = 1;
 				if (isdg) {
